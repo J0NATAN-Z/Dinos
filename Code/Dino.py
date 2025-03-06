@@ -1,249 +1,327 @@
 import pygame
-from pygame.locals import *
-from sys import exit
 import os
-from random import randrange, choice
+import random
+import neat
 
 pygame.init()
-pygame.mixer.init()
 
-diretorio_principal = os.path.dirname(__file__)
-diretorio_imagens = os.path.join(diretorio_principal, 'images')
-diretorio_sons = os.path.join(diretorio_principal, 'sons')
+ALTURA = 600
+LARGURA = 1100
+SPEED = 10
+ESCOLHENDO = random.choice([0,1])
+TELA = pygame.display.set_mode((LARGURA, ALTURA))
 
-LARGURA = 640
-ALTURA = 480
-    
-BRANCO = (255,255,255)
+RUNNING = [pygame.image.load(os.path.join("Imagens", "DinoRun"+ str(x)+ ".png")).convert_alpha() for x in range (1,3)]
 
-tela = pygame.display.set_mode((LARGURA, ALTURA))
+DUCKING = [pygame.image.load(os.path.join("Imagens", "DinoDuck" + str(x) + ".png")).convert_alpha() for x in range(1,3)]
 
-pygame.display.set_caption('Dino Game')
+SMALL_CACTUS = [pygame.image.load(os.path.join("Imagens", "SmallCactus"+ str(x) + ".png")).convert_alpha() for x in range(1,4)]
 
-sprite_sheet = pygame.image.load(os.path.join(diretorio_imagens, 'dinoSpritesheet.png')).convert_alpha()
+LARGE_CACTUS = [pygame.image.load(os.path.join("Imagens", "LargeCactus"+str(x)+".png")).convert_alpha() for x in range(1,4)]
 
-som_colisao = pygame.mixer.Sound(os.path.join(diretorio_sons, 'death_sound.wav'))
-som_colisao.set_volume(1)
+BIRD = [pygame.image.load(os.path.join("Imagens", "Bird"+str(x)+".png")).convert_alpha() for x in range (1,3)]
 
-som_pontuacao = pygame.mixer.Sound(os.path.join(diretorio_sons, 'score_sound.wav'))
-som_pontuacao.set_volume(1)
+CLOUD = pygame.image.load(os.path.join("Imagens", "Cloud.png")).convert_alpha()
+GROUND = pygame.image.load(os.path.join("Imagens", "Track.png")).convert_alpha()
 
-colidiu = False
 
-escolha_obstaculo = choice([0, 1])
+class Cloud():
+     def __init__(self):
+          self.image = CLOUD
+          self.rect = self.image.get_rect()
+          self.rect.x = LARGURA - random.randint(10,10)
+          self.rect.y = random.randint(50,200)
+     
+     def update(self):
+          if self.rect.topright[0] < 0:
+               self.rect.x = LARGURA
+               self.rect.y = random.randint (50,150)
+          self.rect.x -= SPEED
 
-pontos = 0
+     def draw (self, TELA):
+          TELA.blit(self.image, (self.rect.x, self.rect.y))
+          
+class Cactu():
+     def __init__(self):
+          self.all_cactus = SMALL_CACTUS + LARGE_CACTUS
+          self.imagem_cactus = []
+          for imagem in self.all_cactus:
+               self.imagem_cactus.append(imagem)
+          self.index =0
+          self.imagem = self.imagem_cactus[self.index]
+          self.rect = self.imagem.get_rect()
+          self.rect.x= LARGURA
+          self.rect.y = ALTURA - 140
+          self.escolha = ESCOLHENDO
+          
+     def update(self):
+          if self.escolha == 0:
+               if self.index > 5:
+                    self.index =0
+               if self.rect.topright[0] < 0:
+                    self.rect.x = LARGURA
+                    self.index += random.choice(seq=[0,1,2,3,4,5])
+                    self.index = self.index % len(self.imagem_cactus)
+                    self.imagem = self.imagem_cactus[self.index]
+               self.rect.x -= SPEED
+          
+     def draw(self, TELA):
+          TELA.blit(self.imagem,(self.rect.x, self.rect.y))
+          
+     def get_mask(self):
+        return pygame.mask.from_surface(self.imagem)
+     
+     def width(self):
+          return pygame.Surface.get_width(self.imagem)
+          
+class Bird():
+     def __init__(self):
+          self.bird = BIRD
+          self.imagem_bird = []
+          for imagem in self.bird:
+               self.imagem_bird.append(imagem)
+          self.index =0
+          self.imagem = self.imagem_bird[self.index]
+          self.rect = self.imagem.get_rect()
+          self.rect.x= LARGURA
+          self.rect.y = ALTURA - 240
+          self.escolha = ESCOLHENDO
+          
+     def update(self):
+          if self.escolha == 1:
+               if self.index > 1:
+                    self.index =0
+               self.index += random.choice(seq=[0,1])
+               self.index = self.index % len(self.imagem_bird)
+               self.imagem = self.imagem_bird[self.index]
+               if self.rect.topright[0] < 0:
+                    self.rect.x = LARGURA 
+               self.rect.x -=SPEED +1
+          
+     def draw(self, TELA):
+          TELA.blit(self.imagem,(self.rect.x, self.rect.y))
+     
+     def get_mask(self):
+        return pygame.mask.from_surface(self.imagem)
 
-velocidade_jogo = 10
-
-def exibe_mensagem(msg, tamanho, cor):
-    fonte = pygame.font.SysFont('comicsansms', tamanho, True, False)
-    mensagem = f'{msg}' 
-    texto_formatado = fonte.render(mensagem, True, cor)
-    return texto_formatado
-
-def reiniciar_jogo():
-    global pontos, velocidade_jogo, colidiu, escolha_obstaculo
-    pontos = 0
-    velocidade_jogo = 10
-    colidiu = False
-    dino.rect.y = ALTURA - 64 - 96//2
-    dino.pulo = False
-    dino_voador.rect.x = LARGURA
-    cacto.rect.x = LARGURA
-    escolha_obstaculo = choice([0, 1])
-
-class Dino(pygame.sprite.Sprite):
+class Ground:
     def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.som_pulo = pygame.mixer.Sound(os.path.join(diretorio_sons, 'jump_sound.wav'))
-        self.som_pulo.set_volume(1)
-        self.imagens_dinossauro = []
-        for i in range(3):
-            img = sprite_sheet.subsurface((i * 32,0), (32,32))
-            img = pygame.transform.scale(img, (32*3, 32*3))
-            self.imagens_dinossauro.append(img)
+        self.image = GROUND
+        self.largura = self.image.get_width()
+        self.rect = self.image.get_rect()
+        self.rect.x = 0
+        self.rect.y = ALTURA - 91
+
+    def update(self):
+          if self.rect.topright[0] < 1:
+               self.rect.x = 0
+          self.rect.x -= SPEED
+
+    def draw(self, TELA):
+          TELA.blit(self.image, (self.rect.x, self.rect.y))
+          TELA.blit(self.image, (self.rect.x + self.largura, self.rect.y))
+
+class Dino():    
+     def __init__(self,x,y) :
+          self.x = x
+          self.y =y
+          self.vel = 0
+          self.altura = self.y
+          self.correndo = RUNNING
+          self.dino_imagem = []
+          for x in self.correndo:
+               self.dino_imagem.append(x)
+          self.index = 0 
+          self.image = self.dino_imagem[self.index]
+          self.drect = self.image.get_rect() #peg o retangulo do da imagem e salva no drect
+          self.drect.y = self.y
+          self.drect.x = self.x
+          
+     def jump(self):          
+          if self.drect.bottom >= self.y:
+            self.vel -= 10
+          
+     def ducking(self):
+          if self.drect.bottom <= self.y:
+               self.vel = +12
+               
+     def update(self):
+          if self.index > 1:
+               self.index =0
+          self.index += 1
+          self.index = self.index % len(self.dino_imagem)
+          self.image = self.dino_imagem[int(self.index)]
+          
+          #gravidade
+          self.vel += 0.19
+          #gravidade+ eixo y da sprite
+          self.drect.y += self.vel 
+          #verifica a altura da base do sprite
+          if self.drect.bottom < 400 :
+               #deixa altura trava a 400 ate bottom >= 400
+               self.drect.bottom = 400
+               #isso é desnecessario
+               self.drect.bottom +=0
+          #impede que o sprite passe o "chao"
+          if self.drect.bottom >= self.y:
+            self.drect.bottom = self.y
+            self.vel = 0
+               
+     
+     def draw(self,TELA):
+          TELA.blit(self.image,self.drect.topleft)
+          font = pygame.font.Font(None, 50)
+          debug_text = font.render(f"Vel: {self.vel}, Y: {self.drect.bottom}/{self.y}, x: {self.x} ", True, (0, 0, 0))
+     
+     def get_mask(self):
+          return pygame.mask.from_surface(self.image)
+
+class Utilitario:
+    def __init__(self):
+        self.score = 0
+        self.max_score = 0
+
+    def incrementar_score(self):
+        global SPEED
+        self.score += 1
+        if self.score % 100 == 0 and SPEED < 50:
+            SPEED += 1
+
+    def atualizar_max_score(self):
+        if self.score > self.max_score:
+            self.max_score = self.score
+
+    def desenhar_scores(self, tela):
+        font = pygame.font.Font(None, 50)
+        current_score_text = font.render(f"Pontuação: {int(self.score)}", True, (0, 0, 0))
+        tela.blit(current_score_text, (800, 20))
         
-        self.index_lista = 0
-        self.image = self.imagens_dinossauro[self.index_lista]
-        self.rect = self.image.get_rect()
-        self.mask = pygame.mask.from_surface(self.image)
-        self.pos_y_inicial = ALTURA - 64 - 96//2
-        self.rect.topleft = (100, self.pos_y_inicial) #368   416(centro y)
-        self.pulo = False
+    @staticmethod
+    def verificar_colisao(dino, cactu, bird):
+        dino_mask = dino.get_mask()
+        cactu_mask = cactu.get_mask()
+        bird_mask = bird.get_mask()
 
-    def pular(self):
-        self.pulo = True
-        self.som_pulo.play()
+        cactu_offset = (cactu.rect.x - dino.drect.x, cactu.rect.y - dino.drect.y)
+        bird_offset = (bird.rect.x - dino.drect.x, bird.rect.y - dino.drect.y)
 
-    def update(self):
+        cactu_colisao = dino_mask.overlap(cactu_mask, cactu_offset)
+        bird_colisao = dino_mask.overlap(bird_mask, bird_offset)
 
-        if self.pulo == True:
-            if self.rect.y <= self.pos_y_inicial - 150:
-                self.pulo = False
-            self.rect.y -= 15
+        return cactu_colisao or bird_colisao
 
-        else:
-            if self.rect.y >= self.pos_y_inicial:
-                self.rect.y = self.pos_y_inicial
-            else:
-                self.rect.y += 15
-        
- 
-        if self.index_lista > 2:
-            self.index_lista = 0
-        self.index_lista += 0.25
-        self.image = self.imagens_dinossauro[int(self.index_lista)]
+    def resetar(self, dino, bird, cactu):
+          global SPEED,ESCOLHENDO
+          self.score = 0
+          SPEED = 2
+          Utilitario.verificar_colisao 
+          ESCOLHENDO = random.choice([0,1])
+          bird.rect.x =LARGURA
+          cactu.rect.x =LARGURA
+          dino.drect.y = 550
+                        
+def main(genomes, config):
+     global ESCOLHENDO
+     clock =pygame.time.Clock()
+     clock.tick(120)
+     run = True
+     utilitario = Utilitario()
+     cloud= Cloud()
+     cactu= Cactu()
+     bird = Bird()
+     ground = Ground()  
+     dinos= []
+     nets=[]
+     ge= []
+          
+     for genome_id, genome in genomes:
+          genome.fitness = 0  
+          net = neat.nn.FeedForwardNetwork.create(genome, config)
+          nets.append(net)
+          dinos.append(Dino(random.randint(20,70),550))
+          ge.append(genome)
+     
+     while run and len(dinos)> 0:
+          for event in pygame.event.get():
+               if event.type == pygame.QUIT:
+                    run = False
+                    break
+                         
+          #escole "aleatoriamente" qual sprite, cactu e bird, vai ser desenhado
+          if cactu.rect.topright[0] <0 or bird.rect.topright[0] <0:
+               ESCOLHENDO = random.choice([0,1])
+               cactu.rect.x =LARGURA
+               cactu.index += random.choice([0,1,2,3,4,5])
+               cactu.index = cactu.index % len(cactu.imagem_cactus)
+               cactu.imagem = cactu.imagem_cactus[cactu.index]
+               cactu.escolha = ESCOLHENDO
+               bird.rect.x = LARGURA
+               bird.escolha = cactu.escolha
+               
+          for x, dino in enumerate(dinos):
+               ge[x].fitness += 0.15
+               #calcula a diferenca entre os objetos e com isso criasse colisao entre elas
+               cactu_offset = (cactu.rect.x - dino.drect.x, cactu.rect.y - dino.drect.y)
+               bird_offset = (bird.rect.x - dino.drect.x, bird.rect.y - dino.drect.y)
+               #são 9 paremetros (inputs) passado pra "IA"
+               inputs = ( dino.drect.center[0],dino.drect.center[1],cactu_offset[0],cactu_offset[0] - dino.drect.center[0] ,cactu_offset[1],bird_offset[0], bird_offset[0]- dino.drect.center[0],bird_offset[1], bird_offset[1] - dino.drect.center[1])
+               outputs = nets[x].activate(inputs)
+               
+               #se output < 0.5 corre senao:
+               if outputs[0] > 0.5:
+                    dino.jump()
+               #ou
+               if outputs[1] > 0.5:
+                    dino.ducking()
+          
+          for i, dino in enumerate(dinos):
+               #se o dino colidir entre os objetos (cactu, bird) a pontuacao daquela geracao sera -1 e logo depois excluida
+               if Utilitario.verificar_colisao(dino, cactu, bird):
+                    ge[i].fitness -= 1
+                    nets.pop(i)
+                    ge.pop(i)
+                    dinos.pop(i)
 
-class Nuvens(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = sprite_sheet.subsurface((7*32, 0), (32,32))
-        self.image = pygame.transform.scale(self.image, (32*3, 32*3))
-        self.rect = self.image.get_rect()
-        self.rect.y = randrange(50, 200, 50)
-        self.rect.x = LARGURA - randrange(30, 300, 90)
+          #atualiza os objetos a cada 120 fps
+          cloud.update()
+          cactu.update()
+          bird.update()
+          ground.update()
+          for dino in dinos:
+               dino.update()
+               
+          #draws on winds      
+          TELA.fill((255,255,255))     
+          cloud.draw(TELA)
+          cactu.draw(TELA)
+          bird.draw(TELA)
+          ground.draw(TELA)
+          dino.draw(TELA)
+          
+          for dino in dinos:
+            dino.draw(TELA)
+          utilitario.incrementar_score() 
+          utilitario.desenhar_scores(TELA)
+          
+          pygame.display.update()
 
-    def update(self):
-        if self.rect.topright[0] < 0:
-            self.rect.x = LARGURA
-            self.rect.y = randrange(50, 200, 50)
-        self.rect.x -= velocidade_jogo
 
-class Chao(pygame.sprite.Sprite):
-    def __init__(self, pos_x):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = sprite_sheet.subsurface((6*32, 0), (32,32))
-        self.image = pygame.transform.scale(self.image, (32*2, 32*2))
-        self.rect = self.image.get_rect()
-        self.rect.y = ALTURA - 64
-        self.rect.x = pos_x * 64
+def run(config_file):
+     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                              config_file)
+     p = neat.Population(config)
+     p.add_reporter(neat.StdOutReporter(True))
+     stats = neat.StatisticsReporter()
+     p.add_reporter(stats)
 
-    def update(self):
-        if self.rect.topright[0] < 0:
-            self.rect.x = LARGURA
-        self.rect.x -= 10
-    
-class Cacto(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = sprite_sheet.subsurface((5*32, 0), (32,32))
-        self.image = pygame.transform.scale(self.image, (32*2, 32*2))
-        self.rect = self.image.get_rect()
-        self.mask = pygame.mask.from_surface(self.image)
-        self.escolha = escolha_obstaculo
-        self.rect.center = (LARGURA,  ALTURA - 64)
-        self.rect.x = LARGURA
+     #numero de vezes que vai "rodar" ate chegar no objetivo que eh 1500 pontos
+     winner = p.run(main, 15)
 
-    def update(self):
-        if self.escolha == 0:
-            if self.rect.topright[0] < 0:
-                self.rect.x = LARGURA
-            self.rect.x -= velocidade_jogo
+     # mostra os status final
+     print('\nBest genome:\n{!s}'.format(winner))
 
-class DinoVoador(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.imagens_dinossauro = []
-        for i in range(3,5):
-            img = sprite_sheet.subsurface((i*32, 0), (32,32))
-            img = pygame.transform.scale(img, (32*3, 32*3))
-            self.imagens_dinossauro.append(img)
-
-        self.index_lista = 0
-        self.image = self.imagens_dinossauro[self.index_lista]
-        self.mask = pygame.mask.from_surface(self.image)
-        self.escolha = escolha_obstaculo
-        self.rect = self.image.get_rect()
-        self.rect.center = (LARGURA, 300)
-        self.rect.x = LARGURA
-    
-    def update(self):
-        if self.escolha == 1:
-            if self.rect.topright[0] < 0:
-                self.rect.x = LARGURA
-            self.rect.x -= velocidade_jogo
-
-            if self.index_lista > 1:
-                self.index_lista = 0
-            self.index_lista += 0.25
-            self.image = self.imagens_dinossauro[int(self.index_lista)]
-
-todas_as_sprites = pygame.sprite.Group()
-dino = Dino()
-todas_as_sprites.add(dino)
-
-for i in range(4):
-    nuvem = Nuvens()
-    todas_as_sprites.add(nuvem)
-
-for i in range(LARGURA*2//64):
-    chao = Chao(i)
-    todas_as_sprites.add(chao)
-
-cacto = Cacto()
-todas_as_sprites.add(cacto)
-
-dino_voador = DinoVoador()
-todas_as_sprites.add(dino_voador)
-
-grupo_obstaculos = pygame.sprite.Group()
-grupo_obstaculos.add(cacto)
-grupo_obstaculos.add(dino_voador)
-
-relogio = pygame.time.Clock()
-while True:
-    relogio.tick(120)
-    tela.fill(BRANCO)
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            exit()
-        if event.type == KEYDOWN:
-            if event.key == K_SPACE and colidiu == False:
-                if dino.rect.y != dino.pos_y_inicial:
-                    pass
-                else:
-                    dino.pular()
-
-            if event.key == K_r and colidiu == True:
-                reiniciar_jogo()
-
-    colisoes = pygame.sprite.spritecollide(dino, grupo_obstaculos, False, pygame.sprite.collide_mask)
-
-    todas_as_sprites.draw(tela)
-
-    if cacto.rect.topright[0] <= 0 or dino_voador.rect.topright[0] <= 0:
-        escolha_obstaculo = choice([0, 1])
-        cacto.rect.x = LARGURA
-        dino_voador.rect.x = LARGURA
-        cacto.escolha = escolha_obstaculo
-        dino_voador.escolha = escolha_obstaculo
-
-    if colisoes and colidiu == False:
-        som_colisao.play()
-        colidiu = True
-
-    if colidiu == True:
-        if pontos % 100 == 0:
-            pontos += 1
-        game_over = exibe_mensagem('GAME OVER', 40, (0,0,0))
-        tela.blit(game_over, (LARGURA//2, ALTURA//2))
-        restart = exibe_mensagem('Pressione r para reiniciar', 20, (0,0,0))
-        tela.blit(restart, (LARGURA//2, (ALTURA//2) + 60))
-
-    else:
-        pontos += 1
-        todas_as_sprites.update()
-        texto_pontos = exibe_mensagem(pontos, 40, (0,0,0))
-
-    if pontos % 100 == 0:
-        som_pontuacao.play()
-        if velocidade_jogo >= 23:
-            velocidade_jogo += 0
-        else:
-            velocidade_jogo += 1
-        
-    tela.blit(texto_pontos, (520, 30))
-
-    pygame.display.flip()
+if __name__ == "__main__":
+     local_dir = os.path.dirname(__file__)
+     config_path = os.path.join(local_dir, 'config.txt')
+     run(config_path)
