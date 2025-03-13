@@ -11,6 +11,7 @@ SPEED = 10
 ESCOLHENDO = random.choice([0,1])
 TELA = pygame.display.set_mode((LARGURA, ALTURA))
 
+<<<<<<< HEAD
 RUNNING = [pygame.image.load(os.path.join("Imagens", "DinoRun"+ str(x)+ ".png")).convert_alpha() for x in range (1,3)]
 
 DUCKING = [pygame.image.load(os.path.join("Imagens", "DinoDuck" + str(x) + ".png")).convert_alpha() for x in range(1,3)]
@@ -104,6 +105,103 @@ class Bird():
      def get_mask(self):
         return pygame.mask.from_surface(self.imagem)
 
+=======
+IA_PLAY = True
+
+RUNNING = [pygame.image.load(os.path.join("Imagens", "DinoRun"+ str(x)+ ".png")).convert_alpha() for x in range (1,3)]
+
+DUCKING = [pygame.image.load(os.path.join("Imagens", "DinoDuck" + str(x) + ".png")).convert_alpha() for x in range(1,3)]
+
+SMALL_CACTUS = [pygame.image.load(os.path.join("Imagens", "SmallCactus"+ str(x) + ".png")).convert_alpha() for x in range(1,4)]
+
+LARGE_CACTUS = [pygame.image.load(os.path.join("Imagens", "LargeCactus"+str(x)+".png")).convert_alpha() for x in range(1,4)]
+
+BIRD = [pygame.image.load(os.path.join("Imagens", "Bird"+str(x)+".png")).convert_alpha() for x in range (1,3)]
+
+CLOUD = pygame.image.load(os.path.join("Imagens", "Cloud.png")).convert_alpha()
+GROUND = pygame.image.load(os.path.join("Imagens", "Track.png")).convert_alpha()
+
+
+class Cloud():
+     def __init__(self):
+          self.image = CLOUD
+          self.rect = self.image.get_rect()
+          self.rect.x = LARGURA - random.randint(10,10)
+          self.rect.y = random.randint(50,200)
+     
+     def update(self):
+          if self.rect.topright[0] < 0:
+               self.rect.x = LARGURA
+               self.rect.y = random.randint (50,150)
+          self.rect.x -= SPEED
+
+     def draw (self, TELA):
+          TELA.blit(self.image, (self.rect.x, self.rect.y))
+          
+class Cactu():
+     def __init__(self):
+          self.all_cactus = SMALL_CACTUS + LARGE_CACTUS
+          self.imagem_cactus = []
+          for imagem in self.all_cactus:
+               self.imagem_cactus.append(imagem)
+          self.index =0
+          self.imagem = self.imagem_cactus[self.index]
+          self.rect = self.imagem.get_rect()
+          self.rect.x= LARGURA
+          self.rect.y = ALTURA - 140
+          self.escolha = ESCOLHENDO
+          
+     def update(self):
+          if self.escolha == 0:
+               if self.index > 5:
+                    self.index =0
+               if self.rect.topright[0] < 0:
+                    self.rect.x = LARGURA
+                    self.index += random.choice(seq=[0,1,2,3,4,5])
+                    self.index = self.index % len(self.imagem_cactus)
+                    self.imagem = self.imagem_cactus[self.index]
+               self.rect.x -= SPEED
+          
+     def draw(self, TELA):
+          TELA.blit(self.imagem,(self.rect.x, self.rect.y))
+          
+     def get_mask(self):
+        return pygame.mask.from_surface(self.imagem)
+     
+     def width(self):
+          return pygame.Surface.get_width(self.imagem)
+          
+class Bird():
+     def __init__(self):
+          self.bird = BIRD
+          self.imagem_bird = []
+          for imagem in self.bird:
+               self.imagem_bird.append(imagem)
+          self.index =0
+          self.imagem = self.imagem_bird[self.index]
+          self.rect = self.imagem.get_rect()
+          self.rect.x= LARGURA
+          self.rect.y = ALTURA - 240
+          self.escolha = ESCOLHENDO
+          
+     def update(self):
+          if self.escolha == 1:
+               if self.index > 1:
+                    self.index =0
+               self.index += random.choice(seq=[0,1])
+               self.index = self.index % len(self.imagem_bird)
+               self.imagem = self.imagem_bird[self.index]
+               if self.rect.topright[0] < 0:
+                    self.rect.x = LARGURA 
+               self.rect.x -=SPEED +1
+          
+     def draw(self, TELA):
+          TELA.blit(self.imagem,(self.rect.x, self.rect.y))
+     
+     def get_mask(self):
+        return pygame.mask.from_surface(self.imagem)
+
+>>>>>>> a28857959e8f9ee50e53cb6974e4c3a466fb8414
 class Ground:
     def __init__(self):
         self.image = GROUND
@@ -229,6 +327,7 @@ def main(genomes, config):
      cloud= Cloud()
      cactu= Cactu()
      bird = Bird()
+<<<<<<< HEAD
      ground = Ground()  
      dinos= []
      nets=[]
@@ -282,6 +381,87 @@ def main(genomes, config):
                     ge.pop(i)
                     dinos.pop(i)
 
+=======
+     ground = Ground()
+     if not IA_PLAY:
+          dino = Dino(50,550)
+          
+
+     else:
+          dinos= []
+          nets=[]
+          ge= []
+          
+          for genome_id, genome in genomes:
+               genome.fitness = 0  
+               net = neat.nn.FeedForwardNetwork.create(genome, config)
+               nets.append(net)
+               dinos.append(Dino(50,550))
+               ge.append(genome)
+     
+     while run and len(dinos)> 0:
+          for event in pygame.event.get():
+               if event.type == pygame.QUIT:
+                    run = False
+                    break
+               if not IA_PLAY: 
+                    if event.type == pygame.KEYDOWN:
+                         if event.key == pygame.K_UP:
+                              dino.jump() 
+                         if event.key == pygame.K_DOWN:
+                              dino.ducking()
+                         if event.key == pygame.K_r and Utilitario.verificar_colisao(dino, cactu, bird):
+                              utilitario.resetar(dino,bird, cactu)     
+                              
+          #"ia_play" é se o jogador quer jogar de formal "manual" ou "automatico"
+          if not IA_PLAY:
+               if Utilitario.verificar_colisao(dino, cactu, bird):
+                    pass
+               else:
+                    cloud.update()
+                    cactu.update()
+                    bird.update()
+                    ground.update()
+                    dino.update()
+                    utilitario.incrementar_score()
+                    utilitario.atualizar_max_score() 
+          
+          #escole "aleatoriamente" qual sprite, cactu e bird, vai ser desenhado
+          if cactu.rect.topright[0] <0 or bird.rect.topright[0] <0:
+               ESCOLHENDO = random.choice([0,1])
+               cactu.rect.x =LARGURA
+               cactu.index += random.choice([0,1,2,3,4,5])
+               cactu.index = cactu.index % len(cactu.imagem_cactus)
+               cactu.imagem = cactu.imagem_cactus[cactu.index]
+               cactu.escolha = ESCOLHENDO
+               bird.rect.x = LARGURA
+               bird.escolha = cactu.escolha
+               
+          for x, dino in enumerate(dinos):
+               ge[x].fitness += 0.15
+               #calcula a diferenca entre os objetos e com isso criasse colisao entre elas
+               cactu_offset = (cactu.rect.x - dino.drect.x, cactu.rect.y - dino.drect.y)
+               bird_offset = (bird.rect.x - dino.drect.x, bird.rect.y - dino.drect.y)
+               #são 9 paremetros (inputs) passado pra "IA"
+               inputs = ( dino.drect.center[0],dino.drect.center[1],cactu_offset[0],cactu_offset[0] - dino.drect.center[0] ,cactu_offset[1],bird_offset[0], bird_offset[0]- dino.drect.center[0],bird_offset[1], bird_offset[1] - dino.drect.center[1])
+               outputs = nets[x].activate(inputs)
+               
+               #se output < 0.5 corre senao:
+               if outputs[0] > 0.5:
+                    dino.jump()
+               #ou
+               if outputs[1] > 0.5:
+                    dino.ducking()
+          
+          for i, dino in enumerate(dinos):
+               #se o dino colidir entre os objetos (cactu, bird) a pontuacao daquela geracao sera -1 e logo depois excluida
+               if Utilitario.verificar_colisao(dino, cactu, bird):
+                    ge[i].fitness -= 1
+                    nets.pop(i)
+                    ge.pop(i)
+                    dinos.pop(i)
+
+>>>>>>> a28857959e8f9ee50e53cb6974e4c3a466fb8414
           #atualiza os objetos a cada 120 fps
           cloud.update()
           cactu.update()
@@ -305,6 +485,7 @@ def main(genomes, config):
           
           pygame.display.update()
 
+<<<<<<< HEAD
 
 def run(config_file):
      config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -325,3 +506,28 @@ if __name__ == "__main__":
      local_dir = os.path.dirname(__file__)
      config_path = os.path.join(local_dir, 'config.txt')
      run(config_path)
+=======
+if not IA_PLAY:          
+     main(None, None)
+
+else:
+     def run(config_file):
+          config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                              config_file)
+          p = neat.Population(config)
+          p.add_reporter(neat.StdOutReporter(True))
+          stats = neat.StatisticsReporter()
+          p.add_reporter(stats)
+
+          #tamanho da populacao inicial
+          winner = p.run(main, 15)
+
+          # mostra os status final
+          print('\nBest genome:\n{!s}'.format(winner))
+
+     if __name__ == "__main__":
+          local_dir = os.path.dirname(__file__)
+          config_path = os.path.join(local_dir, 'config.txt')
+          run(config_path)
+>>>>>>> a28857959e8f9ee50e53cb6974e4c3a466fb8414
