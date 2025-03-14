@@ -2,19 +2,21 @@
 
 I challenged myself to make a Dino game and then create an AI to play it.
 
+## Installation
+
 For can play you will need of Pygame module
 
-´´´´bash
+```bash
     pip install pygame
-´´´´
+```
 
 and to do IA play it was using NEAT
 
-´´´´bash
+```bash
     pip install neat-python
-´´´´
+```
 
-# What is NEAT?
+## What is NEAT?
 
 NEAT (NeuroEvolution of Augmenting Topologies) is a machine learning technique used to evolve artificial neural networks. It combines genetic algorithms with neural networks to evolve solutions to complex tasks. In this case, the NEAT algorithm helps train the AI to play the Dino game.
 
